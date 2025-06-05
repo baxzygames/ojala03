@@ -1,0 +1,193 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Regalos para Mi Amor 💖</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background-image: url('images/hello-kitty-bg.jpg');
+      background-size: cover;
+      background-position: center;
+      background-attachment: fixed;
+      background-color: rgba(255, 228, 236, 0.9);
+      padding: 2rem;
+      text-align: center;
+    }
+    .hidden { display: none; }
+    .card {
+      background: white;
+      padding: 1rem;
+      margin: 1rem auto;
+      max-width: 300px;
+      border-radius: 1rem;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    button {
+      background: #ec407a;
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      margin-top: 1rem;
+      border-radius: 0.5rem;
+      cursor: pointer;
+    }
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    input {
+      padding: 0.5rem;
+      border-radius: 0.5rem;
+      border: 1px solid #ccc;
+    }
+    ul { list-style: none; padding: 0; }
+    li { margin: 0.5rem 0; }
+    li button {
+      background: #ff6b6b;
+      margin-left: 10px;
+      padding: 0.2rem 0.5rem;
+    }
+  </style>
+</head>
+<body>
+  <div id="login">
+    <h1>Bienvenida 💖</h1>
+    <input type="password" id="passwordInput" placeholder="Ingresa la clave" />
+    <br>
+    <button onclick="checkPassword()">Entrar</button>
+  </div>
+
+  <div id="catalog" class="hidden">
+    <h2>¡Hola amor! 💖 Tus puntos: <span id="pointsDisplay"></span></h2>
+    <div id="secretButtons" class="hidden">
+      <button onclick="addPoints()">+10 puntos (secreto)</button>
+    </div>
+    <h3>Premios disponibles</h3>
+    <div id="rewardsContainer"></div>
+    <h4>🎁 Premios reclamados</h4>
+    <ul id="claimedList"></ul>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js"></script>
+  <script>
+    window.onload = function () {
+      const firebaseConfig = {
+        apiKey: "AIzaSyDHmglJzkkCqj0QWdqDApXa4ybDeLsf9dg",
+        authDomain: "kitty-e92da.firebaseapp.com",
+        databaseURL: "https://kitty-e92da-default-rtdb.firebaseio.com",
+        projectId: "kitty-e92da",
+        storageBucket: "kitty-e92da.appspot.com",
+        messagingSenderId: "355314934489",
+        appId: "1:355314934489:web:82c3522c360ad0f43514c8"
+      };
+      const app = firebase.initializeApp(firebaseConfig);
+      const db = firebase.database();
+
+      let isOwner = false;
+      let points = 0;
+      let claimed = [];
+
+      const rewards = [
+        { id: 1, title: 'Cena romántica', points: 100 },
+        { id: 2, title: 'Cine', points: 50 },
+        { id: 3, title: 'Bono de ropa', points: 150 },
+        { id: 4, title: 'Skin Care', points: 200 },
+        { id: 5, title: 'Cámara Instantánea', points: 300 },
+        { id: 6, title: 'Helado', points: 20 },
+        { id: 7, title: 'Zapatos Bosi', points: 200 }
+      ];
+
+      window.checkPassword = function () {
+        const input = document.getElementById('passwordInput').value;
+        if (input === "amor2025" || input === "soyyo2025") {
+          isOwner = input === "soyyo2025";
+          document.getElementById('login').classList.add('hidden');
+          document.getElementById('catalog').classList.remove('hidden');
+          if (isOwner) {
+            document.getElementById('secretButtons').classList.remove('hidden');
+          }
+          loadData();
+        } else {
+          alert("Clave incorrecta 💔");
+        }
+      };
+
+      function loadData() {
+        const pointsRef = db.ref('puntos');
+        const claimedRef = db.ref('reclamados');
+
+        pointsRef.on('value', (snapshot) => {
+          points = snapshot.val() || 0;
+          renderCatalog();
+        });
+
+        claimedRef.on('value', (snapshot) => {
+          claimed = snapshot.val() || [];
+          renderCatalog();
+        });
+      }
+
+      function renderCatalog() {
+        document.getElementById('pointsDisplay').textContent = points;
+        const container = document.getElementById('rewardsContainer');
+        container.innerHTML = '';
+        rewards.forEach(r => {
+          const card = document.createElement('div');
+          card.className = 'card';
+          card.innerHTML = `
+            <h3>${r.title}</h3>
+            <p>${r.points} puntos</p>
+            <button onclick="redeem(${r.id})" ${points < r.points ? 'disabled' : ''}>Canjear</button>
+          `;
+          container.appendChild(card);
+        });
+
+        const claimedList = document.getElementById('claimedList');
+        claimedList.innerHTML = '';
+        claimed.forEach((item, index) => {
+          const li = document.createElement('li');
+          li.textContent = item;
+          if (isOwner) {
+            const btn = document.createElement('button');
+            btn.textContent = '❌';
+            btn.onclick = function() { removeClaimed(index); };
+            li.appendChild(btn);
+          }
+          claimedList.appendChild(li);
+        });
+      }
+
+      window.redeem = function(id) {
+        const reward = rewards.find(r => r.id === id);
+        if (reward && points >= reward.points) {
+          const newPoints = points - reward.points;
+          const newClaimed = [...claimed, reward.title];
+          db.ref().update({
+            puntos: newPoints,
+            reclamados: newClaimed
+          });
+        }
+      };
+
+      window.removeClaimed = function(index) {
+        const updated = [...claimed];
+        updated.splice(index, 1);
+        db.ref().update({
+          reclamados: updated
+        });
+      };
+
+      window.addPoints = function() {
+        const newPoints = points + 10;
+        db.ref().update({
+          puntos: newPoints
+        });
+      };
+    };
+  </script>
+</body>
+</html>
